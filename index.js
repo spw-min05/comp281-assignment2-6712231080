@@ -31,13 +31,13 @@ function main() {
 	// ต้องมีครบ 6 อย่าง: ภูเขา, พระอาทิตย์, ท้องนา, ต้นไม้, บ้าน/กระท่อม, แม่น้ำ
 	// องค์ประกอบอื่น ๆ เพิ่มเติมได้ตามต้องการ (เช่น ท้องฟ้า, ก้อนเมฆ ฯลฯ)
 
-	// Ground with thickness: use a thin box so the ground has visible depth
-	const groundHeight = 0.4; // adjust this value to change thickness
+	// เปิดพื้นด้วยกล่องบางๆ ให้มีความหนาเล็กน้อย (มองเห็นขอบ)
+	const groundHeight = 0.4; // กำหนดความหนา
 	const geometryGround = new THREE.BoxGeometry(10, groundHeight, 10);
 	const materialGround = new THREE.MeshStandardMaterial({ color: 0x4b8a2f, roughness: 1.0, side: THREE.DoubleSide });
 	const meshGround = new THREE.Mesh(geometryGround, materialGround);
 	// Position so the top surface is at y = 0-
-	meshGround.position.set(0, -groundHeight / 2, 0);//เป็นพื้นดิน
+	meshGround.position.set(0, -groundHeight / 2, 0);
 	meshGround.receiveShadow = true;//รับเงา
 	M3D.scene.add(meshGround);
 
@@ -46,18 +46,14 @@ function main() {
 	// วางวัตถุใด ๆ ให้จุดต่ำสุดอยู่ที่ระดับพื้น (y=0)
 	// (ใช้กับโมเดลที่โหลดเข้ามาได้)
 	function placeOnGround(object3d) {
-		// compute bounding box in world space
+		// คำนวณ bounding box ในพื้นที่โลก
 		const box = new THREE.Box3().setFromObject(object3d);
 		if (!box.isEmpty()) {
 			const minY = box.min.y;
-			// shift object so minY becomes 0 (ground top)
 			object3d.position.y -= minY;
 		}
 	}
 
-	// helper: ย้ายวัตถุให้แตะพื้น (y=0) โดยใช้ bounding box
-
-	// เก็บข้อมูลกลุ่มเมฆและนาฬิกาเพื่อทำอนิเมชันเมฆ
 	const cloudGroups = [];
 	const cloudClock = new THREE.Clock();
 
@@ -84,30 +80,19 @@ function main() {
 		
 	})();
 
-	// คือเเม่น้ำ
+	// เเม่น้ำ
 	(function addRiver() {
-		// make river deeper so surface sits below ground level
-		const riverWidth = 2.0; // ความกว้าง
-		const riverLength = 10; // ความยาว
-		const riverDepth = 0.4; // total depth of river (box height)
-		const riverTopOffset = 0.05; 
+		const riverWidth = 2.0; 
+		const riverLength = 10;
+		const riverDepth = 0.4; // ความลึก
+		const riverTopOffset = 0.05; // ผิสน้ำ
 		const riverGeom = new THREE.BoxGeometry(riverLength, riverDepth, riverWidth);
 		const riverMat = new THREE.MeshStandardMaterial({ color: 0x3aa0d6, metalness: 0.0, roughness: 0.35, transparent: true, opacity: 0.95 });
 		const river = new THREE.Mesh(riverGeom, riverMat);
-		// compute center y so top sits at riverTopOffset (topY = centerY + riverDepth/2)
 		const riverCenterY = riverTopOffset - (riverDepth / 2);
 		river.position.set(0, riverCenterY, 0);
 		river.receiveShadow = true;
 		M3D.scene.add(river);
-
-		// shores: two slightly overlapping strips that sit on top of the ground and overlap the river edge
-		const shoreWidth = 0.6;  //ความกว้างของชายฝั่งแต่ละด้าน
-		const shoreLength = riverLength + 1.0; // a bit longer to overlap
-		const shoreHeight = 0.04; // thin but visible
-		const shoreGeom = new THREE.BoxGeometry(shoreLength, shoreHeight, shoreWidth);
-		const shoreMat = new THREE.MeshStandardMaterial({ color: 0x4b8a2f, roughness: 1.0 });
-		const shoreLeft = new THREE.Mesh(shoreGeom, shoreMat);
-		const shoreRight = shoreLeft.clone();
 
 	})();
 
@@ -132,7 +117,7 @@ function main() {
 			return g; // คืนค่า group เพื่อเก็บสถานะ
 		}
 
-		// definitions for clouds (base positions)
+		// กำหนดตำแหน่งและขนาดของเมฆแต่ละกลุ่ม
 		const cloudDefs = [
 			{ x: 0, y: 2, z: 0, scale: 0.5 },
 			{ x: 0, y: 2.5, z: -2, scale: 0.6 },
@@ -140,7 +125,7 @@ function main() {
 			{ x: 0.5, y: 2, z: 1, scale: 0.7 }
 		];
 
-		// สร้างเมฆและเก็บข้อมูลเล็กๆ สำหรับทำอนิเมชัน (base position, amplitude, speed)
+		// สร้างเมฆและเก็บข้อมูลเล็กๆ สำหรับทำอนิเมชัน 
 		cloudDefs.forEach((def, i) => {
 			const g = makeCloud(def.x, def.y, def.z, def.scale);
 			cloudGroups.push({
@@ -155,8 +140,8 @@ function main() {
 		});
 	})();
 
-		const loader = new GLTFLoader(); // สร้าง GLTFLoader
-		// load stylized_tree
+		const loader = new GLTFLoader(); 
+		// load ต้นไม้
 		loader.load(
 			'assets/stylized_tree.glb',
 			function(gltf) {
@@ -171,19 +156,16 @@ function main() {
 						console.log('Mesh found in gltf (tree):', child.name);
 					}
 				});
-				// don't add the single source model; we'll add clones instead
-				// create a small forest by cloning this tree 10 times at fixed positions
-				const treeGroup = new THREE.Group();
-				// deterministic offsets within each cluster (10 offsets total)
+
+				// กำหนดตำแหน่งและขนาดของต้นไม้แต่ละต้น
 				const offsets = [
 					[-0.6, 0, -0.4], [0.2, 0, -0.6], [0.8, 0, 0.1], [-0.3, 0, 0.6],
 					[-0.8, 0, 0.5], [0.1, 0, 0.9], [0.6, 0, -0.2], [-1.2, 0, 0.8],
 					[1.0, 0, 0.6], [-0.4, 0, -1.0]
 				];
 
-				// place trees evenly along X with spacing ~0.7, centered at baseSpot
-				const baseSpot = [1.6, 0, -1.75]; // center point for the row
-				const spacing = 0.7; // distance between trees
+				const baseSpot = [1.6, 0, -1.75]; // จุดศูนย์กลางสำหรับแถว
+				const spacing = 0.7; // ระยะห่างระหว่างต้นไม้
 				const count = offsets.length;
 				const startX = baseSpot[0] - ((count - 1) / 2) * spacing;
 				for (let i = 0; i < count; i++) {
@@ -191,8 +173,8 @@ function main() {
 					const x = startX + i * spacing;
 					const y = baseSpot[1];
 					const z = baseSpot[2];
-					const s = 1.0; // uniform scale for clarity
-					const r = 0; // no rotation
+					const s = 1.0; // ขนาดเดียวกันทั้งหมด
+					const r = 0; // ไม่มีการหมุน
 					clone.position.set(x, y, z);
 					clone.scale.set(s, s, s);
 					clone.rotation.y = r;
@@ -204,7 +186,7 @@ function main() {
 					});
 					treeGroup.add(clone);
 				}
-				// position the whole group slightly above ground if needed
+				// วางกลุ่มต้นไม้ทั้งหมด
 				treeGroup.position.y = 0;
 				M3D.scene.add(treeGroup);
 				if (typeof loadEnd === 'function') loadEnd();
@@ -217,7 +199,7 @@ function main() {
 			}
 		);
 
-		// load abandoned_house
+		// load บ้านเเสนสุข
 		loader.load(
 			'assets/abandoned_house.glb',
 			function(gltf) {
@@ -233,16 +215,14 @@ function main() {
 					}
 				});
 
-				// --- add model to scene ---
+				// วางวัตถุให้จุดต่ำสุดอยู่ที่ระดับพื้น
 				M3D.scene.add(model);
-				// add visual helpers to see where model is
 				const axes = new THREE.AxesHelper(1);
 				model.add(axes);
 				const box = new THREE.BoxHelper(model, 0xff0000);
 				M3D.scene.add(box);
-				// point OrbitControls to model and frame it in view
 				if (M3D.controls) {
-					//frameModel(model);
+
 				}
 				if (typeof loadEnd === 'function') loadEnd();
 			},
@@ -256,7 +236,7 @@ function main() {
 
 
 
-		// เ
+		// แสงสว่างทั่วไป
 		const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
 		M3D.scene.add(ambientLight);
 		// ทิศทางเเสง
@@ -279,10 +259,10 @@ function main() {
 		const lightSphereMat = new THREE.MeshStandardMaterial({ color: 0xffffaa, emissive: 0xffff88, emissiveIntensity: 0.9 });
 		const lightSphere = new THREE.Mesh(lightSphereGeom, lightSphereMat);
 		lightSphere.name = 'LightSphere';
-		lightSphere.userData.selectable = true; // allow selection by raycaster
-		pointLight.add(lightSphere); // attach sphere so it follows the light
+		lightSphere.userData.selectable = true; // 
+		pointLight.add(lightSphere); // 
 
-		// TransformControls to move the point light without moving the camera
+		
 		const transformControls = new TransformControls(M3D.camera, M3D.renderer.domElement);
 		M3D.scene.add(transformControls);
 		transformControls.attach(pointLight);
@@ -290,7 +270,7 @@ function main() {
 			if (M3D.controls) M3D.controls.enabled = !event.value; // disable orbit while dragging
 		});
 
-		// เป็น
+		// เป็นฟังก์ชันสำหรับจัดกรอบโมเดล
 		function frameModel(object3d, margin = 1.2) {
 			const box = new THREE.Box3().setFromObject(object3d);
 			const size = new THREE.Vector3();
@@ -327,15 +307,14 @@ function main() {
 		stats.update(); // อัปเดต Stats
 		FPS.update(); // อัปเดต FPS
 
-		// UPDATE state of objects here
-		// animate clouds: small left-right oscillation that loops
+		// อนิเมชันเมฆ
 		const t = cloudClock.getElapsedTime();
 		for (let i = 0; i < cloudGroups.length; i++) {
 			const c = cloudGroups[i];
 			if (!c || !c.group) continue;
 			const dx = Math.sin(t * c.speed + c.phase) * c.amp;
 			c.group.position.x = c.baseX + dx;
-			// gently bob up and down a little (optional, small amplitude)
+			// 
 			c.group.position.y = c.baseY + Math.sin(t * (c.speed * 0.6) + c.phase * 0.5) * (c.amp * 0.12);
 		}
 
