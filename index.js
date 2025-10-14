@@ -1,4 +1,4 @@
-import * as THREE from 'three'; // three จากที่กำหนดใน importmap
+import * as THREE from 'three'; // three จากที่กำหนดใน importmap (หลัก)
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
@@ -7,10 +7,14 @@ import Stats from 'three/addons/libs/stats.module.js';
 import { M3D, createLabel2D, FPS } from './utils-module.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
+// สรุป: สคริปต์นี้สร้างฉาก 3D เล็กๆ มีพื้น ทะเลสาบ ภูเขา เมฆ ต้นไม้ และไฟที่ย้ายได้
+
+// เริ่ม main เมื่อ DOM โหลดเสร็จ
 document.addEventListener("DOMContentLoaded", main);
 
 function main() {
-	// ใช้ M3D ที่นำเข้ามา
+	// main(): ตั้งค่า renderer, เพิ่มลงหน้า และเริ่ม loop
+	// ใช้ M3D ที่นำเข้ามาจาก utils-module
 	document.body.appendChild(M3D.renderer.domElement);
 	document.body.appendChild(M3D.cssRenderer.domElement);
 
@@ -33,11 +37,14 @@ function main() {
 	const materialGround = new THREE.MeshStandardMaterial({ color: 0x4b8a2f, roughness: 1.0, side: THREE.DoubleSide });
 	const meshGround = new THREE.Mesh(geometryGround, materialGround);
 	// Position so the top surface is at y = 0-
-	meshGround.position.set(0, -groundHeight / 2, 0);
-	meshGround.receiveShadow = true;
+	meshGround.position.set(0, -groundHeight / 2, 0);//เป็นพื้นดิน
+	meshGround.receiveShadow = true;//รับเงา
 	M3D.scene.add(meshGround);
 
-	// helper: place any object so its lowest point sits exactly on ground top (y=0)
+	// พื้น: ใช้กล่องบางๆ ให้มีความหนาเล็กน้อย (มองเห็นขอบ)
+
+	// วางวัตถุใด ๆ ให้จุดต่ำสุดอยู่ที่ระดับพื้น (y=0)
+	// (ใช้กับโมเดลที่โหลดเข้ามาได้)
 	function placeOnGround(object3d) {
 		// compute bounding box in world space
 		const box = new THREE.Box3().setFromObject(object3d);
@@ -48,24 +55,27 @@ function main() {
 		}
 	}
 
-	// --- Simple mountains (two peaks) placed behind the scene ---
+	// helper: ย้ายวัตถุให้แตะพื้น (y=0) โดยใช้ bounding box
+
+	// เก็บข้อมูลกลุ่มเมฆและนาฬิกาเพื่อทำอนิเมชันเมฆ
+	const cloudGroups = [];
+	const cloudClock = new THREE.Clock();
+
+	// ภูเขา
 	(function addMountains() {
 		const mountainMaterial = new THREE.MeshStandardMaterial({ color: 0x6b4f2f, roughness: 1.0 });
-		// Left mountain (bigger, further)
-		const geomLeft = new THREE.ConeGeometry(3.0, 4.5, 4); // low-poly cone (4 sides gives a pyramid-like mountain)
+		const geomLeft = new THREE.ConeGeometry(1.5, 2.5, 4); // ความสูง, ความกว้างฐาน, จำนวนด้าน
 		const leftMountain = new THREE.Mesh(geomLeft, mountainMaterial);
-		leftMountain.position.set(-5, 0, -8);
-		leftMountain.rotation.y = 0.2;
+		leftMountain.position.set(-3, 0, 3);
 		placeOnGround(leftMountain);
 		leftMountain.receiveShadow = true;
 		leftMountain.castShadow = true;
 		M3D.scene.add(leftMountain);
 
-		// Right mountain (smaller, closer)
-		const geomRight = new THREE.ConeGeometry(2.2, 3.5, 4);
+		// ภูเขา2
+		const geomRight = new THREE.ConeGeometry(1.5, 2.5, 4); //ความสุง, ความกว้างฐาน, จำนวนด้าน
 		const rightMountain = new THREE.Mesh(geomRight, mountainMaterial);
-		rightMountain.position.set(4, 0, -7);
-		rightMountain.rotation.y = -0.3;
+		rightMountain.position.set(-3, 0, -3); // ตำเเหน่งภูเขา
 		rightMountain.receiveShadow = true;
 		rightMountain.castShadow = true;
 		placeOnGround(rightMountain);
@@ -74,41 +84,40 @@ function main() {
 		
 	})();
 
-	// --- River across the middle of the scene (centered on ground) ---
+	// คือเเม่น้ำ
 	(function addRiver() {
-		const riverWidth = 2.0;
-		const riverLength = 20.0;
-		const riverHeight = 0.02; // very thin
-		const riverGeom = new THREE.BoxGeometry(riverLength, riverHeight, riverWidth);
-		const riverMat = new THREE.MeshStandardMaterial({ color: 0x3aa0d6, metalness: 0.0, roughness: 0.35, transparent: true, opacity: 0.9 });
+		// make river deeper so surface sits below ground level
+		const riverWidth = 2.0; // ความกว้าง
+		const riverLength = 10; // ความยาว
+		const riverDepth = 0.4; // total depth of river (box height)
+		const riverTopOffset = 0.05; 
+		const riverGeom = new THREE.BoxGeometry(riverLength, riverDepth, riverWidth);
+		const riverMat = new THREE.MeshStandardMaterial({ color: 0x3aa0d6, metalness: 0.0, roughness: 0.35, transparent: true, opacity: 0.95 });
 		const river = new THREE.Mesh(riverGeom, riverMat);
-		// top of river should sit at y = 0 (ground top). Box is centered, so raise by riverHeight/2
-		river.position.set(0, riverHeight / 2, 0);
+		// compute center y so top sits at riverTopOffset (topY = centerY + riverDepth/2)
+		const riverCenterY = riverTopOffset - (riverDepth / 2);
+		river.position.set(0, riverCenterY, 0);
 		river.receiveShadow = true;
 		M3D.scene.add(river);
 
-		// shores: two slightly overlapping planes to hide hard edges
-		const shoreWidth = 0.5; // width of each shore strip
+		// shores: two slightly overlapping strips that sit on top of the ground and overlap the river edge
+		const shoreWidth = 0.6;  //ความกว้างของชายฝั่งแต่ละด้าน
 		const shoreLength = riverLength + 1.0; // a bit longer to overlap
-		const shoreGeom = new THREE.BoxGeometry(shoreLength, 0.02, shoreWidth);
+		const shoreHeight = 0.04; // thin but visible
+		const shoreGeom = new THREE.BoxGeometry(shoreLength, shoreHeight, shoreWidth);
 		const shoreMat = new THREE.MeshStandardMaterial({ color: 0x4b8a2f, roughness: 1.0 });
 		const shoreLeft = new THREE.Mesh(shoreGeom, shoreMat);
 		const shoreRight = shoreLeft.clone();
-		// position: left is negative z
-		shoreLeft.position.set(0, 0.01, -(riverWidth / 2 + shoreWidth / 2 - 0.05));
-		shoreRight.position.set(0, 0.01, (riverWidth / 2 + shoreWidth / 2 - 0.05));
-		shoreLeft.receiveShadow = true;
-		shoreRight.receiveShadow = true;
-		M3D.scene.add(shoreLeft);
-		M3D.scene.add(shoreRight);
+
 	})();
 
 
 	
-	// --- Simple clouds (groups of spheres) ---
+	// เมฆ: สร้างกลุ่มเมฆเล็กๆ ในท้องฟ้า
 	(function addClouds() {
-		const cloudMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.85 });
-		function makeCloud(x, y, z, scale=1) {
+		const cloudMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.95 });
+		function makeCloud(x, y, z, scale=0) {
+			// สร้าง Group ของเมฆจาก 3 ลูกบอลเล็กๆ
 			const g = new THREE.Group();
 			const s1 = new THREE.Mesh(new THREE.SphereGeometry(0.8 * scale, 12, 12), cloudMaterial);
 			s1.position.set(-0.6 * scale, 0, 0);
@@ -116,15 +125,34 @@ function main() {
 			s2.position.set(0.4 * scale, 0.1 * scale, 0);
 			const s3 = new THREE.Mesh(new THREE.SphereGeometry(0.7 * scale, 12, 12), cloudMaterial);
 			s3.position.set(1.0 * scale, -0.1 * scale, 0);
-			[g.add(s1), g.add(s2), g.add(s3)];
+			g.add(s1); g.add(s2); g.add(s3);
 			g.position.set(x, y, z);
 			g.scale.set(scale, scale, scale);
 			M3D.scene.add(g);
+			return g; // คืนค่า group เพื่อเก็บสถานะ
 		}
-		makeCloud(-2, 4.0, -6, 1.2);
-		makeCloud(2, 3.5, -5.5, 1.0);
-		makeCloud(5, 4.2, -7.5, 0.9);
-		makeCloud(0.5, 4.6, -9, 1.3);
+
+		// definitions for clouds (base positions)
+		const cloudDefs = [
+			{ x: 0, y: 2, z: 0, scale: 0.5 },
+			{ x: 0, y: 2.5, z: -2, scale: 0.6 },
+			{ x: 0, y: 2.2, z: -1, scale: 0.5 },
+			{ x: 0.5, y: 2, z: 1, scale: 0.7 }
+		];
+
+		// สร้างเมฆและเก็บข้อมูลเล็กๆ สำหรับทำอนิเมชัน (base position, amplitude, speed)
+		cloudDefs.forEach((def, i) => {
+			const g = makeCloud(def.x, def.y, def.z, def.scale);
+			cloudGroups.push({
+				group: g,
+				baseX: def.x,
+				baseY: def.y,
+				baseZ: def.z,
+				amp: 0.4 + (i * 0.05), // ความกว้างการแกว่งเล็กน้อย
+				speed: 0.6 + (i * 0.1), // ความเร็วต่างกันเล็กน้อย
+				phase: i * 0.8 // ช่วงเริ่มต้นต่างกัน
+			});
+		});
 	})();
 
 		const loader = new GLTFLoader(); // สร้าง GLTFLoader
@@ -143,28 +171,28 @@ function main() {
 						console.log('Mesh found in gltf (tree):', child.name);
 					}
 				});
-				M3D.scene.add(model);
+				// don't add the single source model; we'll add clones instead
 				// create a small forest by cloning this tree 10 times at fixed positions
 				const treeGroup = new THREE.Group();
-				const fixedPositions = [
-					[-3.5, 0, -2.5],
-					[-2.0, 0, -1.0],
-					[-1.0, 0, 1.5],
-					[0.5, 0, -3.0],
-					[1.5, 0, -0.5],
-					[2.8, 0, 1.0],
-					[3.2, 0, -2.0],
-					[-0.5, 0, 2.8],
-					[-2.8, 0, 2.0],
-					[0.0, 0, 0.8]
+				// deterministic offsets within each cluster (10 offsets total)
+				const offsets = [
+					[-0.6, 0, -0.4], [0.2, 0, -0.6], [0.8, 0, 0.1], [-0.3, 0, 0.6],
+					[-0.8, 0, 0.5], [0.1, 0, 0.9], [0.6, 0, -0.2], [-1.2, 0, 0.8],
+					[1.0, 0, 0.6], [-0.4, 0, -1.0]
 				];
-				const fixedScales = [1.1, 0.9, 1.2, 0.8, 1.0, 1.3, 0.95, 1.15, 0.85, 1.05];
-				const fixedRotations = [0, 0.3, -0.2, 0.8, -1.0, 0.5, -0.6, 0.2, 1.2, -0.4];
-				for (let i = 0; i < fixedPositions.length; i++) {
+
+				// place trees evenly along X with spacing ~0.7, centered at baseSpot
+				const baseSpot = [1.6, 0, -1.75]; // center point for the row
+				const spacing = 0.7; // distance between trees
+				const count = offsets.length;
+				const startX = baseSpot[0] - ((count - 1) / 2) * spacing;
+				for (let i = 0; i < count; i++) {
 					const clone = model.clone(true);
-					const [x, y, z] = fixedPositions[i];
-					const s = fixedScales[i] || 1;
-					const r = fixedRotations[i] || 0;
+					const x = startX + i * spacing;
+					const y = baseSpot[1];
+					const z = baseSpot[2];
+					const s = 1.0; // uniform scale for clarity
+					const r = 0; // no rotation
 					clone.position.set(x, y, z);
 					clone.scale.set(s, s, s);
 					clone.rotation.y = r;
@@ -195,7 +223,7 @@ function main() {
 			function(gltf) {
 				console.log('GLTF loaded:', gltf);
 				const model = gltf.scene;
-				model.position.set(3, 0, 2);
+				model.position.set(3, 0, -3);
 				model.scale.set(0.15, 0.15, 0.15);
 				model.traverse((child) => {
 					if (child.isMesh) {
@@ -214,7 +242,7 @@ function main() {
 				M3D.scene.add(box);
 				// point OrbitControls to model and frame it in view
 				if (M3D.controls) {
-					frameModel(model);
+					//frameModel(model);
 				}
 				if (typeof loadEnd === 'function') loadEnd();
 			},
@@ -228,10 +256,10 @@ function main() {
 
 
 
-		// add basic lighting so MeshStandardMaterial is visible
+		// เ
 		const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
 		M3D.scene.add(ambientLight);
-
+		// ทิศทางเเสง
 		const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
 		dirLight.position.set(5, 10, 7.5);
 		dirLight.castShadow = true;
@@ -239,7 +267,30 @@ function main() {
 		dirLight.shadow.mapSize.height = 1024;
 		M3D.scene.add(dirLight);
 
-		// helper: frame model in view by computing its bounding box
+		// พระอาทิตย์
+		const pointLight = new THREE.PointLight(0xfff2d6, 1.2, 30);
+		pointLight.position.set(0, 2.5, 0);
+		pointLight.castShadow = true;
+		pointLight.shadow.mapSize.width = 1024;
+		pointLight.shadow.mapSize.height = 1024;
+		M3D.scene.add(pointLight);
+
+		const lightSphereGeom = new THREE.SphereGeometry(0.18, 16, 16);
+		const lightSphereMat = new THREE.MeshStandardMaterial({ color: 0xffffaa, emissive: 0xffff88, emissiveIntensity: 0.9 });
+		const lightSphere = new THREE.Mesh(lightSphereGeom, lightSphereMat);
+		lightSphere.name = 'LightSphere';
+		lightSphere.userData.selectable = true; // allow selection by raycaster
+		pointLight.add(lightSphere); // attach sphere so it follows the light
+
+		// TransformControls to move the point light without moving the camera
+		const transformControls = new TransformControls(M3D.camera, M3D.renderer.domElement);
+		M3D.scene.add(transformControls);
+		transformControls.attach(pointLight);
+		transformControls.addEventListener('dragging-changed', (event) => {
+			if (M3D.controls) M3D.controls.enabled = !event.value; // disable orbit while dragging
+		});
+
+		// เป็น
 		function frameModel(object3d, margin = 1.2) {
 			const box = new THREE.Box3().setFromObject(object3d);
 			const size = new THREE.Vector3();
@@ -276,8 +327,17 @@ function main() {
 		stats.update(); // อัปเดต Stats
 		FPS.update(); // อัปเดต FPS
 
-		// UPDATE state of objects here		
-		// TODO: อัปเดตสถานะของวัตถุต่างๆ ที่ต้องการในแต่ละเฟรม (เช่น การเคลื่อนที่, การหมุน ฯลฯ)
+		// UPDATE state of objects here
+		// animate clouds: small left-right oscillation that loops
+		const t = cloudClock.getElapsedTime();
+		for (let i = 0; i < cloudGroups.length; i++) {
+			const c = cloudGroups[i];
+			if (!c || !c.group) continue;
+			const dx = Math.sin(t * c.speed + c.phase) * c.amp;
+			c.group.position.x = c.baseX + dx;
+			// gently bob up and down a little (optional, small amplitude)
+			c.group.position.y = c.baseY + Math.sin(t * (c.speed * 0.6) + c.phase * 0.5) * (c.amp * 0.12);
+		}
 
 
 		// RENDER scene and camera
