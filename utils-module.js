@@ -46,9 +46,11 @@ document.addEventListener("mousedown", function(event) {
 
 let touch = { x: 0, y: 0, isDown: false };
 document.addEventListener("touchmove", function(event) {
+	if (!event.touches || event.touches.length === 0) return; // no touches
 	const touchEvent = event.touches[0]; // ใช้ touch แรก (นิ้วแรก)
-	touch.x = touchEvent.pageX - ctx.canvas.offsetLeft; // คำนวณตำแหน่งสัมพัทธ์กับ canvas
-	touch.y = touchEvent.pageY - ctx.canvas.offsetTop; // คำนวณตำแหน่งสัมพัทธ์กับ canvas
+// ใช้ clientX/clientY เพื่อหลีกเลี่ยงการอ้างอิงตัวแปร ctx ที่อาจไม่มีอยู่
+	touch.x = touchEvent.clientX;
+	touch.y = touchEvent.clientY;
 });
 
 // Main 3D Object

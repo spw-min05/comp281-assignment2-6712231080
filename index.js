@@ -31,23 +31,18 @@ function main() {
 	// ต้องมีครบ 6 อย่าง: ภูเขา, พระอาทิตย์, ท้องนา, ต้นไม้, บ้าน/กระท่อม, แม่น้ำ
 	// องค์ประกอบอื่น ๆ เพิ่มเติมได้ตามต้องการ (เช่น ท้องฟ้า, ก้อนเมฆ ฯลฯ)
 
-	// เปิดพื้นด้วยกล่องบางๆ ให้มีความหนาเล็กน้อย (มองเห็นขอบ)
+	// พื้น
 	const groundHeight = 0.4; // กำหนดความหนา
 	const geometryGround = new THREE.BoxGeometry(10, groundHeight, 10);
 	const materialGround = new THREE.MeshStandardMaterial({ color: 0x4b8a2f, roughness: 1.0, side: THREE.DoubleSide });
 	const meshGround = new THREE.Mesh(geometryGround, materialGround);
-	// Position so the top surface is at y = 0-
-	meshGround.position.set(0, -groundHeight / 2, 0);
+	meshGround.position.set(0, -groundHeight / 2, 0);// Position y = 0
 	meshGround.receiveShadow = true;//รับเงา
 	M3D.scene.add(meshGround);
 
-	// พื้น: ใช้กล่องบางๆ ให้มีความหนาเล็กน้อย (มองเห็นขอบ)
-
-	// วางวัตถุใด ๆ ให้จุดต่ำสุดอยู่ที่ระดับพื้น (y=0)
-	// (ใช้กับโมเดลที่โหลดเข้ามาได้)
 	function placeOnGround(object3d) {
 		// คำนวณ bounding box ในพื้นที่โลก
-		const box = new THREE.Box3().setFromObject(object3d);
+		const box = new THREE.Box3().setFromObject(object3d);// box มี min, max
 		if (!box.isEmpty()) {
 			const minY = box.min.y;
 			object3d.position.y -= minY;
@@ -82,12 +77,12 @@ function main() {
 
 	// เเม่น้ำ
 	(function addRiver() {
-		const riverWidth = 2.0; 
+		const riverWidth = 2.0;
 		const riverLength = 10;
 		const riverDepth = 0.4; // ความลึก
 		const riverTopOffset = 0.05; // ผิสน้ำ
 		const riverGeom = new THREE.BoxGeometry(riverLength, riverDepth, riverWidth);
-		const riverMat = new THREE.MeshStandardMaterial({ color: 0x3aa0d6, metalness: 0.0, roughness: 0.35, transparent: true, opacity: 0.95 });
+		const riverMat = new THREE.MeshStandardMaterial({ color: 0x3aa0d6,   transparent: true, opacity: 0.95 });
 		const river = new THREE.Mesh(riverGeom, riverMat);
 		const riverCenterY = riverTopOffset - (riverDepth / 2);
 		river.position.set(0, riverCenterY, 0);
@@ -98,11 +93,11 @@ function main() {
 
 
 	
-	// เมฆ: สร้างกลุ่มเมฆเล็กๆ ในท้องฟ้า
+	// เมฆ
 	(function addClouds() {
 		const cloudMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.95 });
 		function makeCloud(x, y, z, scale=0) {
-			// สร้าง Group ของเมฆจาก 3 ลูกบอลเล็กๆ
+			// สร้าง
 			const g = new THREE.Group();
 			const s1 = new THREE.Mesh(new THREE.SphereGeometry(0.8 * scale, 12, 12), cloudMaterial);
 			s1.position.set(-0.6 * scale, 0, 0);
@@ -141,6 +136,13 @@ function main() {
 	})();
 
 		const loader = new GLTFLoader(); 
+
+		// 
+		const treeGroup = new THREE.Group();
+		treeGroup.name = 'TreeGroup';
+
+	// 
+		if (typeof window.loadEnd !== 'function') window.loadEnd = function() {};
 		// load ต้นไม้
 		loader.load(
 			'assets/stylized_tree.glb',
@@ -309,12 +311,12 @@ function main() {
 
 		// อนิเมชันเมฆ
 		const t = cloudClock.getElapsedTime();
-		for (let i = 0; i < cloudGroups.length; i++) {
+		for (let i = 0; i < cloudGroups.length; i++) {//
 			const c = cloudGroups[i];
 			if (!c || !c.group) continue;
-			const dx = Math.sin(t * c.speed + c.phase) * c.amp;
+			const dx = Math.sin(t * c.speed + c.phase) * c.amp;// การเคลื่อนที่ในแกน X
 			c.group.position.x = c.baseX + dx;
-			// 
+			// อัปเดตตำแหน่ง Y ของกลุ่มเมฆ
 			c.group.position.y = c.baseY + Math.sin(t * (c.speed * 0.6) + c.phase * 0.5) * (c.amp * 0.12);
 		}
 
