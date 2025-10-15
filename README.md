@@ -28,7 +28,7 @@
 ---
 
 ## ลิงก์วิดีโออธิบาย งางนาน
-(https://img.youtube.com/vi/LO95ntxgJWg/maxresdefault.jpg)(https://youtu.be/LO95ntxgJWg)
+[https://youtu.be/LO95ntxgJWg](https://youtu.be/LO95ntxgJWg)
 
 ---
 
